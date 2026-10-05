@@ -18,3 +18,8 @@ Every AI prompt used in this project (including code assistants), in order.
 6. scan the code again and search for problems
 7. what did we do so far?
 8. continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed
+
+## Session 3 — Frontend implementation and auth (2026-10-04 – 2026-10-05)
+
+9. search problems in code @ticket-maintenance-frontend 
+10. scan again and search problems and say whats happens

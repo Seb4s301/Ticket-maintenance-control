@@ -96,8 +96,8 @@ CREATE TABLE ticket_history (
 -- SEED DATA
 
 INSERT INTO users (id, name, email, password_hash, role, is_active, created_at) VALUES
-    (1, 'Demo User', 'demo.user@example.com', 'seed-placeholder-no-auth', 'USER', TRUE, NOW()),
-    (2, 'Demo Operator', 'demo.operator@example.com', 'seed-placeholder-no-auth', 'OPERATOR', TRUE, NOW());
+    (1, 'Demo User', 'demo.user@example.com', 'PBKDF2-SHA256$100000$WTcVDUtTVZyggxW3+FAhxw==$7oz0rzAdXha7F+5E9kSfUU8COgL/Fwai7pJnGXbehcM=', 'USER', TRUE, NOW()),
+    (2, 'Demo Operator', 'demo.operator@example.com', 'PBKDF2-SHA256$100000$WTcVDUtTVZyggxW3+FAhxw==$7oz0rzAdXha7F+5E9kSfUU8COgL/Fwai7pJnGXbehcM=', 'OPERATOR', TRUE, NOW());
 
 INSERT INTO ticket_statuses (code, name) VALUES
     ('PENDING', 'Pending'),

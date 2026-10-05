@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TicketMaintenance.API.Auth;
 using TicketMaintenance.API.Dtos;
 using TicketMaintenance.API.Models;
 using TicketMaintenance.API.Services;
@@ -7,6 +9,7 @@ namespace TicketMaintenance.API.Controllers;
 
 [ApiController]
 [Route("api/tickets")]
+[Authorize]
 [Produces("application/json")]
 public class TicketsController : ControllerBase
 {
@@ -14,13 +17,14 @@ public class TicketsController : ControllerBase
 
     public TicketsController(ITicketService service) => _service = service;
 
-    /// <summary>Creates a ticket in PENDING status.</summary>
+    /// <summary>Creates a ticket in PENDING status (the authenticated user is the creator).</summary>
     [HttpPost]
     [ProducesResponseType(typeof(TicketDetails), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<TicketDetails>> Create(CreateTicketRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _service.CreateAsync(request, cancellationToken);
+        var ticket = await _service.CreateAsync(request, User.GetUserId(), cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = ticket.Id }, ticket);
     }
 
@@ -58,7 +62,7 @@ public class TicketsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<TicketDetails>> Assign(int id, AssignTicketRequest request, CancellationToken cancellationToken) =>
-        Ok(await _service.AssignAsync(id, request, cancellationToken));
+        Ok(await _service.AssignAsync(id, request, User.GetUserId(), cancellationToken));
 
     /// <summary>Moves a ticket to another status id (validated by the state machine).</summary>
     [HttpPost("{id:int}/transition")]
@@ -67,5 +71,13 @@ public class TicketsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<TicketDetails>> Transition(int id, TransitionTicketRequest request, CancellationToken cancellationToken) =>
-        Ok(await _service.TransitionAsync(id, request, cancellationToken));
+        Ok(await _service.TransitionAsync(id, request, User.GetUserId(), cancellationToken));
+
+    /// <summary>Edits title, description, priority and category; appends an EDITED history entry.</summary>
+    [HttpPut("{id:int}")]
+    [ProducesResponseType(typeof(TicketDetails), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TicketDetails>> Update(int id, UpdateTicketRequest request, CancellationToken cancellationToken) =>
+        Ok(await _service.UpdateAsync(id, request, User.GetUserId(), cancellationToken));
 }

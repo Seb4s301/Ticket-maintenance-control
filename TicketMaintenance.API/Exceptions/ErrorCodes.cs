@@ -8,4 +8,6 @@ public static class ErrorCodes
     public const string Conflict = "CONFLICT";
     public const string InvalidReference = "INVALID_REFERENCE";
     public const string ServiceUnavailable = "SERVICE_UNAVAILABLE";
+    public const string Unauthorized = "UNAUTHORIZED";
+    public const string RateLimited = "RATE_LIMITED";
 }

@@ -13,22 +13,29 @@ public class TicketService : ITicketService
 
     public TicketService(ITicketRepository repository) => _repository = repository;
 
-    public async Task<TicketDetails> CreateAsync(CreateTicketRequest request, CancellationToken cancellationToken)
+    public async Task<TicketDetails> CreateAsync(CreateTicketRequest request, int actorId, CancellationToken cancellationToken)
     {
-        var ticketId = await _repository.CreateAsync(request, cancellationToken);
+        var ticketId = await _repository.CreateAsync(request, actorId, cancellationToken);
         return await GetByIdAsync(ticketId, cancellationToken);
     }
 
-    public async Task<TicketDetails> AssignAsync(int ticketId, AssignTicketRequest request, CancellationToken cancellationToken)
+    public async Task<TicketDetails> AssignAsync(int ticketId, AssignTicketRequest request, int actorId, CancellationToken cancellationToken)
     {
-        await _repository.AssignAsync(ticketId, request, cancellationToken);
+        await _repository.AssignAsync(ticketId, request, actorId, cancellationToken);
         return await GetByIdAsync(ticketId, cancellationToken);
     }
 
-    public async Task<TicketDetails> TransitionAsync(int ticketId, TransitionTicketRequest request, CancellationToken cancellationToken)
+    public async Task<TicketDetails> TransitionAsync(int ticketId, TransitionTicketRequest request, int actorId, CancellationToken cancellationToken)
     {
-        await _repository.TransitionAsync(ticketId, request, cancellationToken);
+        await _repository.TransitionAsync(ticketId, request, actorId, cancellationToken);
         return await GetByIdAsync(ticketId, cancellationToken);
+    }
+
+    public async Task<TicketDetails> UpdateAsync(int id, UpdateTicketRequest request, int actorId, CancellationToken cancellationToken)
+    {
+        await GetByIdAsync(id, cancellationToken);
+        await _repository.UpdateTicketAsync(id, request, actorId, cancellationToken);
+        return await GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<TicketDetails> GetByIdAsync(int id, CancellationToken cancellationToken) =>

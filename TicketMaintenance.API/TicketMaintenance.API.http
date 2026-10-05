@@ -1,24 +1,75 @@
 @TicketMaintenance.API_HostAddress = http://localhost:5135
 
+### Health check (anonymous)
 GET {{TicketMaintenance.API_HostAddress}}/health
 Accept: application/json
 
 ###
 
-GET {{TicketMaintenance.API_HostAddress}}/api/tickets?limit=50
-Accept: application/json
+### Login (anonymous, rate-limited to 10/min) -> save the token
+# @name login
+POST {{TicketMaintenance.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo.operator@example.com",
+  "password": "demo1234"
+}
 
 ###
 
+@authToken = {{login.response.body.token}}
+
+### Current account (requires token)
+GET {{TicketMaintenance.API_HostAddress}}/api/auth/me
+Authorization: Bearer {{authToken}}
+
+###
+
+### Update profile: name/email, optional password change (requires token)
+PUT {{TicketMaintenance.API_HostAddress}}/api/auth/profile
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "Demo Operator",
+  "email": "demo.operator@example.com"
+}
+
+###
+
+### List tickets without a token -> 401 UNAUTHORIZED
+GET {{TicketMaintenance.API_HostAddress}}/api/tickets?limit=50
+
+###
+
+### Lookups (requires token)
+GET {{TicketMaintenance.API_HostAddress}}/api/lookups
+Authorization: Bearer {{authToken}}
+
+###
+
+### Create ticket (the token identifies the creator; no actor field in the body)
 POST {{TicketMaintenance.API_HostAddress}}/api/tickets
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
   "title": "ATM-0451 out of service",
   "description": "Screen not responding",
   "priorityId": 3,
-  "categoryId": 1,
-  "createdBy": 1
+  "categoryId": 1
 }
+
+###
+
+### Assign operator (the token identifies the actor; operator must have OPERATOR role)
+# POST {{TicketMaintenance.API_HostAddress}}/api/tickets/1/assign
+# Authorization: Bearer {{authToken}}
+# Content-Type: application/json
+#
+# {
+#   "operatorId": 2
+# }
 
 ###

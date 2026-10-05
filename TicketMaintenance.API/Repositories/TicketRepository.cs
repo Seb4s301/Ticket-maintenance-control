@@ -3,6 +3,7 @@ using Dapper;
 using MySqlConnector;
 using TicketMaintenance.API.Data;
 using TicketMaintenance.API.Dtos;
+using TicketMaintenance.API.Exceptions;
 using TicketMaintenance.API.Models;
 
 namespace TicketMaintenance.API.Repositories;
@@ -47,11 +48,23 @@ public class TicketRepository : ITicketRepository
          WHERE h.ticket_id = @ticketId
          ORDER BY h.created_at, h.id";
 
+    private const string UpdateTicketSql = @"UPDATE tickets SET
+            title = @title,
+            description = @description,
+            priority_id = @priorityId,
+            category_id = @categoryId,
+            updated_at = @updatedAt
+        WHERE id = @id";
+
+    private const string InsertEditHistorySql = @"INSERT INTO ticket_history
+            (ticket_id, user_id, event_type, from_status_id, to_status_id, comment, created_at)
+        VALUES (@ticketId, @userId, 'EDITED', NULL, NULL, 'Ticket data updated', @createdAt)";
+
     private readonly IDbConnectionFactory _factory;
 
     public TicketRepository(IDbConnectionFactory factory) => _factory = factory;
 
-    public async Task<int> CreateAsync(CreateTicketRequest request, CancellationToken cancellationToken)
+    public async Task<int> CreateAsync(CreateTicketRequest request, int actorId, CancellationToken cancellationToken)
     {
         var parameters = new
         {
@@ -59,7 +72,7 @@ public class TicketRepository : ITicketRepository
             p_description = request.Description.Trim(),
             p_priority_id = request.PriorityId,
             p_category_id = request.CategoryId,
-            p_created_by = request.CreatedBy,
+            p_created_by = actorId,
             p_created_at = DateTime.UtcNow
         };
 
@@ -68,13 +81,13 @@ public class TicketRepository : ITicketRepository
                 cancellationToken: cancellationToken, commandType: CommandType.StoredProcedure)));
     }
 
-    public Task AssignAsync(int ticketId, AssignTicketRequest request, CancellationToken cancellationToken)
+    public Task AssignAsync(int ticketId, AssignTicketRequest request, int actorId, CancellationToken cancellationToken)
     {
         var parameters = new
         {
             p_ticket_id = ticketId,
             p_operator_id = request.OperatorId,
-            p_actor_id = request.PerformedBy,
+            p_actor_id = actorId,
             p_assigned_at = DateTime.UtcNow
         };
 
@@ -83,13 +96,13 @@ public class TicketRepository : ITicketRepository
                 cancellationToken: cancellationToken, commandType: CommandType.StoredProcedure)));
     }
 
-    public Task TransitionAsync(int ticketId, TransitionTicketRequest request, CancellationToken cancellationToken)
+    public Task TransitionAsync(int ticketId, TransitionTicketRequest request, int actorId, CancellationToken cancellationToken)
     {
         var parameters = new
         {
             p_ticket_id = ticketId,
             p_target_status_id = request.TargetStatusId,
-            p_actor_id = request.PerformedBy,
+            p_actor_id = actorId,
             p_comment = ToNullIfBlank(request.Comment),
             p_resolution = ToNullIfBlank(request.Resolution),
             p_transition_at = DateTime.UtcNow
@@ -98,6 +111,45 @@ public class TicketRepository : ITicketRepository
         return QueryAsync(connection => connection.ExecuteAsync(
             new CommandDefinition(TransitionTicketProcedure, parameters,
                 cancellationToken: cancellationToken, commandType: CommandType.StoredProcedure)));
+    }
+
+    public async Task UpdateTicketAsync(int id, UpdateTicketRequest request, int actorId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var connection = _factory.Create();
+            var dbConnection = (System.Data.Common.DbConnection)connection;
+            await dbConnection.OpenAsync(cancellationToken);
+            using var transaction = await dbConnection.BeginTransactionAsync(cancellationToken);
+
+            var now = DateTime.UtcNow;
+            var affected = await connection.ExecuteAsync(new CommandDefinition(
+                UpdateTicketSql,
+                new
+                {
+                    id,
+                    title = request.Title.Trim(),
+                    description = request.Description.Trim(),
+                    request.PriorityId,
+                    request.CategoryId,
+                    updatedAt = now
+                },
+                transaction, cancellationToken: cancellationToken));
+
+            if (affected == 0)
+                throw new AppException(404, ErrorCodes.NotFound, "Ticket does not exist");
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                InsertEditHistorySql,
+                new { ticketId = id, userId = actorId, createdAt = now },
+                transaction, cancellationToken: cancellationToken));
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (MySqlException ex)
+        {
+            throw DbErrorTranslator.Translate(ex);
+        }
     }
 
     public Task<TicketDetails?> GetByIdAsync(int id, CancellationToken cancellationToken) =>

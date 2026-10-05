@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TicketMaintenance.API.Models;
 using TicketMaintenance.API.Services;
@@ -6,6 +7,7 @@ namespace TicketMaintenance.API.Controllers;
 
 [ApiController]
 [Route("api/lookups")]
+[Authorize]
 [Produces("application/json")]
 public class LookupsController : ControllerBase
 {
