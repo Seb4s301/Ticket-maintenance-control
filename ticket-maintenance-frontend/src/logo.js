@@ -1,3 +1,3 @@
-import logoUrl from '../../img/fractal-logo.png'
+import logoUrl from './assets/fractal-logo.png'
 
 export { logoUrl }

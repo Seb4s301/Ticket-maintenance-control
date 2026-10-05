@@ -41,13 +41,14 @@ Ticket-maintenance-control/
 │   ├── Serialization/              # UTC-aware DateTime JSON converter
 │   ├── Dockerfile
 │   └── .env.example
-├── ticket-maintenance-frontend/    # React + Vite
+├── ticket-maintenance-frontend/    # React + Vite (Docker + nginx)
+│   ├── Dockerfile
+│   ├── nginx.conf.template          # SPA + /api reverse proxy (env-driven)
 │   └── src/
 │       ├── api/                    # fetch client + endpoint functions
+│       ├── assets/                 # brand logo (fractal-logo.png)
 │       ├── hooks/                  # useAuth (session + profile)
 │       └── components/             # login, panel, drawer, modals, header
-├── img/
-│   └── fractal-logo.png            # brand logo (imported by the frontend)
 ├── mockups/                         # design mockups (source of truth for the UI)
 ├── database/
 │   └── Ticket-maintance-control-railway.sql   # schema (applied on Railway)
@@ -106,8 +107,8 @@ In every form the label sits above the box and the hint text sits below it:
 - **Login screen**: the app opens on a login card (email + password) with the
   FRACTAL logo; without a valid token nothing else is rendered. Failed attempts
   show a generic Spanish error; after 10 attempts/minute the API answers 429.
-- **Header**: the brand logo (imported from `img/fractal-logo.png`, falls back
-  to the FRACTAL text if the file is missing), breadcrumb, and the logged-in
+- **Header**: the brand logo (imported from `src/assets/fractal-logo.png`, falls
+  back to the FRACTAL text if the file is missing), breadcrumb, and the logged-in
   user (avatar initials + role). The user menu offers **Mi perfil** and
   **Cerrar sesión**.
 - **Mi perfil** modal: update name and email, and change the password
@@ -215,7 +216,10 @@ Anything else is invalid (e.g. `PENDING → RESOLVED` → HTTP 409).
 
 4. Settings → Networking → Generate Domain, then verify `/health` and `/swagger`.
 
-5. Frontend: build with `VITE_API_URL=https://<your-api-domain>` (`npm run
-   build` in `ticket-maintenance-frontend/`) and serve the resulting `dist/`
-   folder from any static host; add its domain to `CORS_ALLOWED_ORIGINS`
-   above.
+5. Frontend — add a second service with **Root Directory** =
+   `ticket-maintenance-frontend` (its Dockerfile builds the SPA and serves it
+   with nginx). Set `API_UPSTREAM = https://<your-api-domain>`; `/api/*` and
+   `/health` are proxied to the API, so the browser stays same-origin and no
+   CORS entry or build-time `VITE_API_URL` is needed. Alternative: serve a
+   plain `npm run build` (`VITE_API_URL=https://<your-api-domain>`) on any
+   static host and add its domain to `CORS_ALLOWED_ORIGINS` above.
