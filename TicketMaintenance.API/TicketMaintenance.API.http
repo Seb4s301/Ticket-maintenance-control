@@ -1,6 +1,24 @@
 @TicketMaintenance.API_HostAddress = http://localhost:5135
 
-GET {{TicketMaintenance.API_HostAddress}}/weatherforecast/
+GET {{TicketMaintenance.API_HostAddress}}/health
 Accept: application/json
+
+###
+
+GET {{TicketMaintenance.API_HostAddress}}/api/tickets?limit=50
+Accept: application/json
+
+###
+
+POST {{TicketMaintenance.API_HostAddress}}/api/tickets
+Content-Type: application/json
+
+{
+  "title": "ATM-0451 out of service",
+  "description": "Screen not responding",
+  "priorityId": 3,
+  "categoryId": 1,
+  "createdBy": 1
+}
 
 ###

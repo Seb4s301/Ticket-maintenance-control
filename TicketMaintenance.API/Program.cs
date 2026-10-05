@@ -3,24 +3,23 @@ using Dapper;
 using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using TicketMaintenance.API.Data;
+using TicketMaintenance.API.Exceptions;
 using TicketMaintenance.API.Middleware;
 using TicketMaintenance.API.Repositories;
+using TicketMaintenance.API.Serialization;
 using TicketMaintenance.API.Services;
 
-try
-{
-    Env.TraversePath().Load();
-}
-catch
-{
-    // No local .env (e.g. Railway): real environment variables are used instead.
-}
+LoadLocalEnvFile();
 
 DefaultTypeMap.MatchNamesWithUnderscores = true;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.Configure<JsonOptions>(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new UtcDateTimeJsonConverter());
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -32,14 +31,22 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
-    options.InvalidModelStateResponseFactory = _ =>
-        new BadRequestObjectResult(new
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(entry => entry.Value is { Errors.Count: > 0 })
+            .SelectMany(entry => entry.Value!.Errors.Select(error => $"{entry.Key}: {error.ErrorMessage}"))
+            .ToList();
+
+        var message = errors.Count > 0
+            ? string.Join(" | ", errors)
+            : "One or more validation errors occurred.";
+
+        return new BadRequestObjectResult(new { status = 400, error = ErrorCodes.ValidationError, message })
         {
-            status = 400,
-            error = "VALIDATION_ERROR",
-            message = "One or more validation errors occurred."
-        })
-        { ContentTypes = { "application/json" } };
+            ContentTypes = { "application/json" }
+        };
+    };
 });
 
 builder.Services.AddSingleton<IDbConnectionFactory, MySqlConnectionFactory>();
@@ -60,6 +67,49 @@ app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("Frontend");
 app.MapControllers();
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
+app.MapGet("/health", async (HttpContext context, CancellationToken cancellationToken) =>
+{
+    var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Health");
+    try
+    {
+        var factory = context.RequestServices.GetRequiredService<IDbConnectionFactory>();
+        using var connection = factory.Create();
+        await connection.ExecuteAsync(new CommandDefinition("SELECT 1", cancellationToken: cancellationToken));
+        return Results.Ok(new { status = "ok" });
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Health check failed");
+        return Results.Json(new { status = "unhealthy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
+app.MapFallback(async context =>
+{
+    context.Response.StatusCode = StatusCodes.Status404NotFound;
+    await context.Response.WriteAsJsonAsync(new
+    {
+        status = 404,
+        error = ErrorCodes.NotFound,
+        message = "The requested endpoint does not exist."
+    });
+});
 
 app.Run();
+
+static void LoadLocalEnvFile()
+{
+    var directory = new DirectoryInfo(AppContext.BaseDirectory);
+    while (directory is not null)
+    {
+        var envPath = Path.Combine(directory.FullName, ".env");
+        if (File.Exists(envPath))
+        {
+            Env.Load(envPath);
+            return;
+        }
+        directory = directory.Parent;
+    }
+    // No .env found: the host (e.g. Railway) provides real environment variables instead.
+}

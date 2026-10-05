@@ -35,6 +35,7 @@ Ticket-maintenance-control/
 │   ├── Models/
 │   ├── Exceptions/
 │   ├── Middleware/                 # global error handler
+│   ├── Serialization/              # UTC-aware DateTime JSON converter
 │   ├── Dockerfile
 │   └── .env.example
 ├── ticket-maintenance-frontend/    # React + Vite
@@ -42,7 +43,8 @@ Ticket-maintenance-control/
 │       ├── api/                    # fetch client + endpoint functions
 │       ├── pages/
 │       └── components/
-├── database/                       # schema.sql (schema applied on Railway)
+├── database/
+│   └── Ticket-maintance-control-railway.sql   # schema (applied on Railway)
 ├── README.md
 └── PROMPTS.md
 ```
@@ -88,26 +90,26 @@ npm run dev               # http://localhost:5173
 | Method | Route | Description | Success | Errors |
 |---|---|---|---|---|
 | POST | `/api/tickets` | Create ticket (PENDING) | 201 | 400 |
-| GET | `/api/tickets` | List tickets (filters: `status`, `assignedTo`, `from`, `to`) | 200 | |
+| GET | `/api/tickets` | List tickets, newest first (filters: `status`, `assignedTo`, `from`, `to`, `limit` ≤ 200, `offset`) | 200 | |
 | GET | `/api/tickets/{id}` | Get ticket | 200 | 404 |
 | GET | `/api/tickets/{id}/history` | Ticket history | 200 | 404 |
-| POST | `/api/tickets/{id}/assign` | Assign operator | 200 | 400, 404, 409 |
-| POST | `/api/tickets/{id}/transition` | Change status | 200 | 400, 404, 409 |
+| POST | `/api/tickets/{id}/assign` | Assign operator (`operatorId`, `performedBy`) | 200 | 400, 404, 409 |
+| POST | `/api/tickets/{id}/transition` | Change status (`targetStatusId`, `performedBy`, `comment?`, `resolution?`) | 200 | 400, 404, 409 |
 | GET | `/api/lookups` | Statuses, priorities, categories, operators | 200 | |
-| GET | `/health` | Health check | 200 | |
+| GET | `/health` | Health check (verifies the DB connection) | 200 | 503 |
 
 ### Error format
 
 ```json
-{ "status": 409, "error": "INVALID_TRANSITION", "message": "This status transition is not allowed." }
+{ "status": 409, "error": "INVALID_TRANSITION", "message": "Invalid state transition" }
 ```
 
 | HTTP | Error code | When |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` / `INVALID_REFERENCE` | Missing fields, missing comment/diagnosis/resolution, unknown ids |
-| 404 | `NOT_FOUND` | Ticket does not exist |
-| 409 | `INVALID_TRANSITION` / `CONFLICT` | Transition not allowed, closed ticket assigned |
-| 500 | `INTERNAL_ERROR` | Only for truly unexpected failures (logged server-side) |
+| 400 | `VALIDATION_ERROR` / `INVALID_REFERENCE` | Missing/invalid fields, missing comment/resolution, unknown ids |
+| 404 | `NOT_FOUND` | Ticket does not exist, unknown endpoint (same JSON shape) |
+| 409 | `INVALID_TRANSITION` / `CONFLICT` | Transition not allowed, ticket assigned to another operator |
+| 503 | `SERVICE_UNAVAILABLE` | Infrastructure/database failures and unexpected errors (logged server-side) |
 
 ## State machine
 
@@ -115,7 +117,7 @@ npm run dev               # http://localhost:5173
 |---|---|---|
 | PENDING | IN_PROGRESS | Operator assigned |
 | PENDING | CANCELLED | Comment (cancellation reason) |
-| IN_PROGRESS | DIAGNOSED | Diagnosis text |
+| IN_PROGRESS | DIAGNOSED | — |
 | IN_PROGRESS | CANCELLED | Comment (cancellation reason) |
 | DIAGNOSED | RESOLVED | Resolution text |
 | RESOLVED | IN_PROGRESS | Comment (reopen reason) |
@@ -124,9 +126,9 @@ Anything else is invalid (e.g. `PENDING → RESOLVED` → HTTP 409).
 
 ## Deploy (Railway)
 
-1. Create a Railway project with a MySQL service and apply the schema (tables,
-   seed data, view and stored procedures) — the schema is already applied on
-   the Railway instance used for this project; keep a copy in `database/`.
+1. Create a Railway project with a MySQL service and apply
+   `database/Ticket-maintance-control-railway.sql` to it (already applied on
+   the instance used for this project).
 2. Add a service from this repo with **Root Directory** = `TicketMaintenance.API`
    (Railway detects the Dockerfile).
 3. Set the API variables referencing the MySQL service:

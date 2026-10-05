@@ -95,6 +95,10 @@ CREATE TABLE ticket_history (
 
 -- SEED DATA
 
+INSERT INTO users (id, name, email, password_hash, role, is_active, created_at) VALUES
+    (1, 'Demo User', 'demo.user@example.com', 'seed-placeholder-no-auth', 'USER', TRUE, NOW()),
+    (2, 'Demo Operator', 'demo.operator@example.com', 'seed-placeholder-no-auth', 'OPERATOR', TRUE, NOW());
+
 INSERT INTO ticket_statuses (code, name) VALUES
     ('PENDING', 'Pending'),
     ('IN_PROGRESS', 'In Progress'),

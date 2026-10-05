@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "lint:spelling": "cspell \"src/**/*. {js,jsx,ts,tsx}\""
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^19.2.8",
