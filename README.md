@@ -48,7 +48,7 @@ Ticket-maintenance-control/
 │       └── components/             # login, panel, drawer, modals, header
 ├── img/
 │   └── fractal-logo.png            # brand logo (imported by the frontend)
-├── mokups/                         # design mockups (source of truth for the UI)
+├── mockups/                         # design mockups (source of truth for the UI)
 ├── database/
 │   └── Ticket-maintance-control-railway.sql   # schema (applied on Railway)
 ├── README.md
@@ -100,7 +100,7 @@ cp .env.example .env      # VITE_API_URL=http://localhost:5135
 npm run dev               # http://localhost:5173
 ```
 
-The interface (Spanish, based on `mokups/`) is a single maintenance panel.
+The interface (Spanish, based on `mockups/`) is a single maintenance panel.
 In every form the label sits above the box and the hint text sits below it:
 
 - **Login screen**: the app opens on a login card (email + password) with the

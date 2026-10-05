@@ -1,9 +1,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-COPY TicketMaintenance.API.csproj TicketMaintenance.API/
-RUN dotnet restore TicketMaintenance.API/TicketMaintenance.API.csproj
+COPY TicketMaintenance.API.csproj .
+RUN dotnet restore TicketMaintenance.API.csproj
 COPY . .
-RUN dotnet publish TicketMaintenance.API/TicketMaintenance.API.csproj -c Release -o /app/publish
+RUN dotnet publish TicketMaintenance.API.csproj -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app

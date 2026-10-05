@@ -1,7 +1,7 @@
 # Ticket Maintenance — Frontend
 
 React 19 + Vite SPA for the ticket maintenance panel (Spanish UI, based on the
-mockups in `../mokups/`).
+mockups in `../mockups/`).
 
 ## Run
 
